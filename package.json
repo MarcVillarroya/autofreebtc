@@ -1,0 +1,25 @@
+{
+  "name": "autofreebtc",
+  "version": "1.0.0",
+  "description": "Automatización de freebitco.in con Playwright",
+  "main": "index.js",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "codegen": "playwright codegen https://freebitco.in/"
+  },
+  "keywords": [
+    "playwright",
+    "automation",
+    "freebitco"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.40.0"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3"
+  }
+}
