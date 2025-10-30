@@ -7,6 +7,9 @@
     "test": "playwright test",
     "test:headed": "playwright test --headed",
     "test:debug": "playwright test --debug",
+    "test:simulator": "playwright test tests/freebitco.simulator.spec.js --headed",
+    "test:production": "playwright test tests/freebitco.spec.js --headed",
+    "simulator": "cd simulator && python -m http.server 3000",
     "codegen": "playwright codegen https://freebitco.in/"
   },
   "keywords": [

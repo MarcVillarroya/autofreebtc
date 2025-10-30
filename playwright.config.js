@@ -6,13 +6,13 @@ const { defineConfig, devices } = require('@playwright/test');
  */
 module.exports = defineConfig({
   testDir: './tests',
-  /* Tiempo máximo que un test puede ejecutarse */
-  timeout: 120 * 1000,
+  /* Sin timeout de test - permitir ejecución indefinida */
+  timeout: 0,
   expect: {
     /**
      * Tiempo máximo que expect() debe esperar una condición
      */
-    timeout: 10000
+    timeout: 30000
   },
   /* Ejecutar tests en archivos en paralelo */
   fullyParallel: false,
@@ -42,7 +42,10 @@ module.exports = defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { 
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1920, height: 1080 },
+      },
     },
     /* Descomenta para usar otros navegadores */
     // {

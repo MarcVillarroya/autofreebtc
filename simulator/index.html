@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FreeBitco.in Simulator - HI-LO Game</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎲 FreeBitco.in Simulator</h1>
+            <div class="balance-container">
+                <span>Balance:</span>
+                <span id="balance">0.00100000</span>
+                <span>BTC</span>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <!-- Columna izquierda: Configuración y Estadísticas -->
+            <div class="left-section">
+                <div class="settings-panel">
+                    <div class="settings-group">
+                        <label for="double_your_btc_stake">BET AMOUNT</label>
+                        <input type="text" id="double_your_btc_stake" value="0.00000001">
+                        <div class="btn-group">
+                            <button onclick="multiplyBet(0.5)">÷2</button>
+                            <button onclick="multiplyBet(2)">2x</button>
+                            <button onclick="setBetToMin()">MIN</button>
+                            <button onclick="setBetToMax()">MAX</button>
+                        </div>
+                    </div>
+
+                    <div class="settings-row">
+                        <div class="settings-group">
+                            <label for="double_your_btc_payout_multiplier">ODDS</label>
+                            <input type="text" id="double_your_btc_payout_multiplier" value="2.00">
+                        </div>
+                        <div class="settings-group">
+                            <label>CHANCE</label>
+                            <div class="win-chance-compact" id="win_chance">47.50%</div>
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <label>WIN PROFIT</label>
+                        <div class="win-profit-compact" id="win_profit">0.00000001</div>
+                    </div>
+
+                    <div class="settings-group">
+                        <label>
+                            <input type="checkbox" id="disable_animation_checkbox">
+                            DISABLE ANIMATION
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Estadísticas compactas -->
+                <div class="stats-compact">
+                    <h3>📊 Session Stats</h3>
+                    <div class="stats-grid-compact">
+                        <div class="stat-compact">
+                            <span class="stat-label-compact">Level:</span>
+                            <span class="stat-value-compact" id="stat_current_level">L1</span>
+                        </div>
+                        <div class="stat-compact">
+                            <span class="stat-label-compact">Max:</span>
+                            <span class="stat-value-compact stat-warning" id="stat_max_level">L1</span>
+                        </div>
+                        <div class="stat-compact">
+                            <span class="stat-label-compact">Bets:</span>
+                            <span class="stat-value-compact" id="stat_total_bets">0</span>
+                        </div>
+                        <div class="stat-compact">
+                            <span class="stat-label-compact">Wins:</span>
+                            <span class="stat-value-compact stat-win" id="stat_wins">0</span>
+                        </div>
+                        <div class="stat-compact">
+                            <span class="stat-label-compact">Losses:</span>
+                            <span class="stat-value-compact stat-lose" id="stat_losses">0</span>
+                        </div>
+                        <div class="stat-compact">
+                            <span class="stat-label-compact">Streak:</span>
+                            <span class="stat-value-compact" id="stat_consecutive_losses">0</span>
+                        </div>
+                        <div class="stat-compact">
+                            <span class="stat-label-compact">Profit:</span>
+                            <span class="stat-value-compact" id="stat_profit">+0.00000000</span>
+                        </div>
+                        <div class="stat-compact">
+                            <span class="stat-label-compact">Max Bet:</span>
+                            <span class="stat-value-compact stat-warning" id="stat_max_bet">0.00000001</span>
+                        </div>
+                        <div class="stat-compact">
+                            <span class="stat-label-compact">Invested:</span>
+                            <span class="stat-value-compact stat-lose" id="stat_total_invested">0.00000000</span>
+                        </div>
+                        <div class="stat-compact">
+                            <span class="stat-label-compact">Rec. Level:</span>
+                            <span class="stat-value-compact stat-info" id="stat_recommended_level">L22</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Columna central: Juego -->
+            <div class="center-section">
+                <div class="roll-display-compact">
+                    <div class="number-display-compact">
+                        <h1 class="counter" id="roll_number">0000</h1>
+                    </div>
+                </div>
+
+                <div class="bet-buttons">
+                    <button class="bet-btn bet-hi" id="bet_hi_button">BET HI</button>
+                    <button class="bet-btn bet-lo" id="bet_lo_button">BET LO</button>
+                </div>
+
+                <div class="bet-info-compact">
+                    <div>HI > <span id="hi_threshold">5250</span> | LO < <span id="lo_threshold">4750</span></div>
+                </div>
+
+                <div class="result-message" id="double_your_btc_bet_win" style="display: none;">
+                    <h2>YOU WIN!</h2>
+                    <p id="win_amount_text"></p>
+                </div>
+
+                <div class="result-message lose" id="double_your_btc_bet_lose" style="display: none;">
+                    <h2>YOU LOSE</h2>
+                    <p id="lose_amount_text"></p>
+                </div>
+            </div>
+
+            <!-- Columna derecha: Tabla Fibonacci -->
+            <div class="right-section">
+                <div class="fibonacci-table-compact">
+                    <h3>📈 Fibonacci Levels</h3>
+                    <div class="table-container-compact">
+                        <table class="fibonacci-table" id="fibonacci_table">
+                            <thead>
+                                <tr>
+                                    <th>Lvl</th>
+                                    <th>Bet</th>
+                                    <th>Total</th>
+                                    <th>P(%)</th>
+                                    <th>St</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fibonacci_table_body">
+                                <!-- Se llenará dinámicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>

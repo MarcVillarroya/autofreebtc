@@ -1,8 +1,6 @@
 const { test } = require('@playwright/test');
-require('dotenv').config();
 
-const EMAIL = process.env.EMAIL;
-const PASSWORD = process.env.PASSWORD;
+const SIMULATOR_URL = 'http://localhost:3000'; // Cambiar según tu servidor local
 const BASE_BET = '0.00000001'; // 1 satoshi
 const BET_ODDS = '3.00';
 const MAX_LEVEL = 22; // L22 según estrategia
@@ -37,36 +35,33 @@ function getTotalCapitalNeeded(level) {
   return satoshisToBTC(total);
 }
 
-async function closeModalIfExists(page, selector, timeout = 5000) {
+test('Simulator - FIBONACCI STRATEGY TEST', async ({ page }) => {
+  
+  // ========== NAVEGACIÓN AL SIMULADOR ==========
   try {
-    await page.click(selector, { timeout });
-  } catch (e) {
-    // Modal no encontrado, continuar
+    await page.goto(SIMULATOR_URL, { waitUntil: 'networkidle' });
+  } catch (error) {
+    console.error('❌ Error: No se pudo cargar el simulador.');
+    console.error('💡 Asegúrate de que el servidor está corriendo en http://localhost:3000');
+    console.error('💡 Ejecuta: npm run simulator');
+    throw error;
   }
-}
-
-test('FreeBitco.in - FIBONACCI STRATEGY', async ({ page }) => {
+  console.log('✅ Simulador cargado');
   
-  // ========== NAVEGACIÓN Y LOGIN ==========
-  await page.goto('https://freebitco.in/');
-  page.once('dialog', dialog => dialog.dismiss().catch(() => {}));
+  // Escuchar errores de consola
+  page.on('console', msg => {
+    if (msg.type() === 'error') {
+      console.error('🔴 Error en consola:', msg.text());
+    }
+  });
   
-  await closeModalIfExists(page, 'text=ALLOW >> nth=2', 10000);
+  // Escuchar errores de página
+  page.on('pageerror', err => {
+    console.error('🔴 Error en página:', err.message);
+  });
   
-  await page.getByRole('link', { name: 'LOGIN' }).click();
-  await page.getByRole('textbox', { name: 'Bitcoin Address/E-mail Address' }).fill(EMAIL);
-  await page.getByRole('textbox', { name: 'Password' }).fill(PASSWORD);
-  await page.getByRole('button', { name: 'LOGIN!' }).click();
-  await page.waitForTimeout(500);
-  
-  await closeModalIfExists(page, 'text=NO THANKS >> nth=0');
-  await page.waitForTimeout(500);
-  await closeModalIfExists(page, 'role=link[name="Got it!"]');
-  console.log('✅ Login completado');
-  
-  // ========== NAVEGAR A MULTIPLY BTC ==========
-  await page.getByRole('navigation').getByRole('link', { name: 'MULTIPLY BTC' }).click();
-  
+  // ========== OBTENER BALANCE INICIAL ==========
+  await page.waitForSelector('#balance', { state: 'visible' });
   const initialBalanceText = await page.locator('#balance').innerText();
   const initialBalance = parseFloat(initialBalanceText);
   console.log(`\n💼 Balance inicial: ${initialBalance.toFixed(8)} BTC`);
@@ -75,8 +70,9 @@ test('FreeBitco.in - FIBONACCI STRATEGY', async ({ page }) => {
 
   // Configurar odds
   await page.locator('#double_your_btc_payout_multiplier').fill(BET_ODDS);
+  await page.waitForTimeout(50);
 
-  // Deshabilitar animaciones
+  // Deshabilitar animaciones para mayor velocidad
   const isChecked = await page.locator('#disable_animation_checkbox').isChecked();
   if (!isChecked) {
     await page.locator('#disable_animation_checkbox').check();
@@ -91,7 +87,7 @@ test('FreeBitco.in - FIBONACCI STRATEGY', async ({ page }) => {
   let sessionActive = true;
 
   console.log('═'.repeat(80));
-  console.log('🎲 INICIANDO ESTRATEGIA FIBONACCI');
+  console.log('🎲 INICIANDO ESTRATEGIA FIBONACCI (SIMULADOR)');
   console.log('═'.repeat(80));
 
   while (sessionActive) {
@@ -105,19 +101,41 @@ test('FreeBitco.in - FIBONACCI STRATEGY', async ({ page }) => {
     
     // Configurar monto de apuesta
     await page.locator('#double_your_btc_stake').fill(currentBet);
-    await page.waitForTimeout(200);
+    await page.waitForTimeout(50);
 
+    // Verificar que el balance es suficiente
+    const currentBalanceText = await page.locator('#balance').innerText();
+    const currentBalance = parseFloat(currentBalanceText);
+    
+    if (currentBalance < parseFloat(currentBet)) {
+      console.log('\n' + '═'.repeat(80));
+      console.log(`🛑 SALDO INSUFICIENTE: ${currentBalance.toFixed(8)} BTC`);
+      console.log(`💰 Necesario: ${currentBet} BTC`);
+      console.log('═'.repeat(80));
+      sessionActive = false;
+      break;
+    }
+    
     // Elegir HI o LO aleatoriamente
-    const betType = Math.random() < 0.5 ? 'BET HI' : 'BET LO';
-    console.log(`🎯 Tipo: ${betType}`);
+    const betType = Math.random() < 0.5 ? 'bet_hi_button' : 'bet_lo_button';
+    const betTypeName = betType === 'bet_hi_button' ? 'BET HI' : 'BET LO';
+    console.log(`🎯 Tipo: ${betTypeName}`);
+    
+    // Verificar que el botón existe y está habilitado
+    await page.waitForSelector(`#${betType}`, { state: 'visible' });
+    const isEnabled = await page.locator(`#${betType}`).isEnabled();
+    if (!isEnabled) {
+      console.error('⚠️  Botón deshabilitado, esperando...');
+      await page.waitForTimeout(1000);
+    }
     
     // Realizar apuesta
-    await page.locator(`button:has-text("${betType}")`).click();
-    await page.waitForTimeout(500);
+    await page.locator(`#${betType}`).click();
+    await page.waitForTimeout(200); // Esperar animación y resultado
     
-    // Esperar resultado
-    await page.locator('h1.counter').waitFor({ state: 'visible' });
-    const result = await page.locator('h1.counter').innerText();
+    // Obtener resultado
+    await page.waitForSelector('#roll_number', { state: 'visible' });
+    const result = await page.locator('#roll_number').innerText();
     
     // Verificar si ganó o perdió
     const isWinVisible = await page.locator('#double_your_btc_bet_win').isVisible().catch(() => false);
@@ -158,9 +176,9 @@ test('FreeBitco.in - FIBONACCI STRATEGY', async ({ page }) => {
       if (currentLevel >= MAX_LEVEL) {
         resetCount++;
         console.log('\n' + '⚠️'.repeat(40));
-        console.log(`� LÍMITE ALCANZADO: Nivel máximo L${MAX_LEVEL} alcanzado (Reset #${resetCount})`);
+        console.log(`🔄 LÍMITE ALCANZADO: Nivel máximo L${MAX_LEVEL} alcanzado (Reset #${resetCount})`);
         console.log(`📊 Pérdidas consecutivas: ${consecutiveLosses}`);
-        console.log(`� RESET: Volviendo a nivel L1 con apuesta base`);
+        console.log(`🔁 RESET: Volviendo a nivel L1 con apuesta base`);
         console.log(`💔 Pérdida acumulada en esta racha: -${(FIBONACCI_SEQUENCE.slice(0, MAX_LEVEL).reduce((a, b) => a + b, 0) / 100000000).toFixed(8)} BTC`);
         console.log('⚠️'.repeat(40) + '\n');
         
@@ -177,11 +195,12 @@ test('FreeBitco.in - FIBONACCI STRATEGY', async ({ page }) => {
       
     } else {
       console.log('⚠️  No se pudo determinar el resultado');
-      sessionActive = false;
+      // Esperar un poco más y reintentar verificación
+      await page.waitForTimeout(500);
     }
     
     // Pequeña pausa entre apuestas
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(500);
   }
 
   // ========== RESUMEN FINAL ==========
@@ -190,7 +209,7 @@ test('FreeBitco.in - FIBONACCI STRATEGY', async ({ page }) => {
   const realProfit = finalBalance - initialBalance;
   
   console.log('\n' + '═'.repeat(80));
-  console.log('📊 RESUMEN DE SESIÓN');
+  console.log('📊 RESUMEN DE SESIÓN (SIMULADOR)');
   console.log('═'.repeat(80));
   console.log(`💼 Balance inicial:  ${initialBalance.toFixed(8)} BTC`);
   console.log(`💼 Balance final:    ${finalBalance.toFixed(8)} BTC`);
