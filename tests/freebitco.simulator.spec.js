@@ -3,8 +3,8 @@ const { test } = require('@playwright/test');
 const SIMULATOR_URL = 'http://localhost:3000'; // Cambiar según tu servidor local
 const BASE_BET = '0.00000001'; // 1 satoshi
 const BET_ODDS = '3.00';
-const MAX_LEVEL = 22; // L22 según estrategia
-const TARGET_PROFIT = 0.00000300; // 300 satoshis de ganancia objetivo
+const MAX_LEVEL = 21; // L22 según estrategia
+const TARGET_PROFIT = 1.00000000; // 300 satoshis de ganancia objetivo
 
 // Secuencia Fibonacci precalculada hasta L30 (en satoshis)
 const FIBONACCI_SEQUENCE = [
@@ -70,7 +70,6 @@ test('Simulator - FIBONACCI STRATEGY TEST', async ({ page }) => {
 
   // Configurar odds
   await page.locator('#double_your_btc_payout_multiplier').fill(BET_ODDS);
-  await page.waitForTimeout(50);
 
   // Deshabilitar animaciones para mayor velocidad
   const isChecked = await page.locator('#disable_animation_checkbox').isChecked();
@@ -101,7 +100,6 @@ test('Simulator - FIBONACCI STRATEGY TEST', async ({ page }) => {
     
     // Configurar monto de apuesta
     await page.locator('#double_your_btc_stake').fill(currentBet);
-    await page.waitForTimeout(50);
 
     // Verificar que el balance es suficiente
     const currentBalanceText = await page.locator('#balance').innerText();
@@ -121,23 +119,16 @@ test('Simulator - FIBONACCI STRATEGY TEST', async ({ page }) => {
     const betTypeName = betType === 'bet_hi_button' ? 'BET HI' : 'BET LO';
     console.log(`🎯 Tipo: ${betTypeName}`);
     
-    // Verificar que el botón existe y está habilitado
-    await page.waitForSelector(`#${betType}`, { state: 'visible' });
-    const isEnabled = await page.locator(`#${betType}`).isEnabled();
-    if (!isEnabled) {
-      console.error('⚠️  Botón deshabilitado, esperando...');
-      await page.waitForTimeout(1000);
-    }
-    
-    // Realizar apuesta
+    // Realizar apuesta directamente (sin verificaciones que ralentizan)
     await page.locator(`#${betType}`).click();
-    await page.waitForTimeout(200); // Esperar animación y resultado
+    
+    // Esperar el mínimo tiempo necesario
+    await page.waitForTimeout(25); // Tiempo mínimo para capturar resultado
     
     // Obtener resultado
-    await page.waitForSelector('#roll_number', { state: 'visible' });
     const result = await page.locator('#roll_number').innerText();
     
-    // Verificar si ganó o perdió
+    // Verificar si ganó o perdió (verificar INMEDIATAMENTE)
     const isWinVisible = await page.locator('#double_your_btc_bet_win').isVisible().catch(() => false);
     const isLoseVisible = await page.locator('#double_your_btc_bet_lose').isVisible().catch(() => false);
     
@@ -195,12 +186,38 @@ test('Simulator - FIBONACCI STRATEGY TEST', async ({ page }) => {
       
     } else {
       console.log('⚠️  No se pudo determinar el resultado');
-      // Esperar un poco más y reintentar verificación
-      await page.waitForTimeout(500);
+      
+      // Si no detectó el resultado, verificar el balance para determinar qué pasó
+      const newBalanceText = await page.locator('#balance').innerText();
+      const newBalance = parseFloat(newBalanceText);
+      
+      if (newBalance > currentBalance) {
+        // Ganó
+        const winAmount = newBalance - currentBalance;
+        totalProfit += winAmount;
+        console.log(`✅ GANÓ (detectado por balance): +${winAmount.toFixed(8)} BTC`);
+        currentLevel = 1;
+        consecutiveLosses = 0;
+      } else if (newBalance < currentBalance) {
+        // Perdió
+        const lossAmount = currentBalance - newBalance;
+        totalProfit -= lossAmount;
+        consecutiveLosses++;
+        console.log(`❌ PERDIÓ (detectado por balance): -${lossAmount.toFixed(8)} BTC`);
+        
+        if (currentLevel >= MAX_LEVEL) {
+          resetCount++;
+          console.log(`🔄 LÍMITE ALCANZADO: Nivel L${MAX_LEVEL} - RESET a L1`);
+          currentLevel = 1;
+          consecutiveLosses = 0;
+        } else {
+          currentLevel++;
+          console.log(`⬆️  Subiendo a nivel L${currentLevel}`);
+        }
+      }
     }
     
-    // Pequeña pausa entre apuestas
-    await page.waitForTimeout(500);
+    // Sin pausa entre apuestas para máxima velocidad
   }
 
   // ========== RESUMEN FINAL ==========

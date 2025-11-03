@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FreeBitco.in Simulator - HI-LO Game</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container">
@@ -156,6 +157,15 @@
             </div>
         </div>
 
+        <!-- Gráfica de evolución del balance (ancho completo) -->
+        <div class="chart-container-full">
+            <h3>📈 Balance Evolution</h3>
+            <canvas id="balanceChart"></canvas>
+            <div class="chart-controls">
+                <button class="chart-reset-btn" onclick="resetChart()">🔄 Reset Chart</button>
+                <span class="chart-info" id="chart_info">0 apuestas registradas</span>
+            </div>
+        </div>
 
     </div>
 

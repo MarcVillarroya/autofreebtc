@@ -1,5 +1,5 @@
 // Estado del juego
-let balance = 0.00001000; // 100,000 satoshis iniciales
+let balance = 0.00100000; // 100,000 satoshis iniciales
 let currentBet = 0.00000001;
 let currentOdds = 2.00;
 let animationsDisabled = false;
@@ -179,10 +179,10 @@ async function placeBet(type) {
                 `You won ${winAmount.toFixed(8)} BTC!`;
             winMessage.style.display = 'block';
             
-            // Ocultar después de 2 segundos
+            // Ocultar después de 30ms
             setTimeout(() => {
                 winMessage.style.display = 'none';
-            }, 500);
+            }, 30);
             
         } else {
             balance -= currentBet;
@@ -214,10 +214,10 @@ async function placeBet(type) {
                 `You lost ${currentBet.toFixed(8)} BTC`;
             loseMessage.style.display = 'block';
             
-            // Ocultar después de 2 segundos
+            // Ocultar después de 30ms
             setTimeout(() => {
                 loseMessage.style.display = 'none';
-            }, 500);
+            }, 30);
         }
         
         // Actualizar UI
@@ -235,8 +235,8 @@ async function placeBet(type) {
 
 async function animateRoll(finalNumber) {
     const counter = document.getElementById('roll_number');
-    const duration = 1000; // 1 segundo
-    const steps = 20;
+    const duration = 20; // 20ms - velocidad máxima absoluta
+    const steps = 2; // Solo 2 pasos
     const stepDuration = duration / steps;
     
     for (let i = 0; i < steps; i++) {
@@ -297,6 +297,9 @@ function updateStats() {
     
     // Actualizar la tabla Fibonacci
     updateFibonacciTable();
+    
+    // Actualizar gráfica de balance
+    updateChart();
 }
 
 function calculateRecommendedLevel(currentBalance) {
@@ -418,12 +421,186 @@ function updateFibonacciTable() {
         }
     }
     
-    // Auto-scroll a la fila actual si está visible
+    // Auto-scroll a la fila actual si está visible (instantáneo)
     const currentRow = document.getElementById(`fib_row_${currentLevel}`);
     if (currentRow) {
-        currentRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        currentRow.scrollIntoView({ behavior: 'auto', block: 'center' });
     }
 }
+
+// ========== GRÁFICA DINÁMICA DE BALANCE ==========
+let balanceChart = null;
+let chartData = {
+    labels: [],
+    balances: []
+};
+
+function initializeChart() {
+    const ctx = document.getElementById('balanceChart').getContext('2d');
+    
+    balanceChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: chartData.labels,
+            datasets: [{
+                label: 'Balance (BTC)',
+                data: chartData.balances,
+                borderColor: '#4ade80',
+                backgroundColor: 'rgba(74, 222, 128, 0.1)',
+                borderWidth: 2,
+                tension: 0.3,
+                pointRadius: 1,
+                pointHoverRadius: 4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: {
+                duration: 0 // Sin animación para mayor velocidad
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    labels: {
+                        color: '#ffffff',
+                        font: {
+                            size: 14,
+                            weight: 'bold'
+                        }
+                    }
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleColor: '#ffffff',
+                    bodyColor: '#ffffff',
+                    borderColor: '#4ade80',
+                    borderWidth: 1,
+                    callbacks: {
+                        title: function(context) {
+                            return 'Apuesta #' + context[0].label;
+                        },
+                        label: function(context) {
+                            const balance = context.parsed.y.toFixed(8);
+                            const change = context.dataIndex > 0 
+                                ? (context.parsed.y - chartData.balances[context.dataIndex - 1]).toFixed(8)
+                                : '0.00000000';
+                            return [
+                                'Balance: ' + balance + ' BTC',
+                                'Cambio: ' + (parseFloat(change) >= 0 ? '+' : '') + change + ' BTC'
+                            ];
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: '🎲 Número de Apuestas',
+                        color: '#ffffff',
+                        font: {
+                            size: 13,
+                            weight: 'bold'
+                        }
+                    },
+                    ticks: {
+                        color: '#ffffff',
+                        maxTicksLimit: 20,
+                        autoSkip: true
+                    },
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)',
+                        drawBorder: false
+                    }
+                },
+                y: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: '💰 Balance (BTC)',
+                        color: '#ffffff',
+                        font: {
+                            size: 13,
+                            weight: 'bold'
+                        }
+                    },
+                    ticks: {
+                        color: '#ffffff',
+                        callback: function(value) {
+                            return value.toFixed(8);
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)',
+                        drawBorder: false
+                    }
+                }
+            },
+            interaction: {
+                mode: 'nearest',
+                axis: 'x',
+                intersect: false
+            }
+        }
+    });
+}
+
+function updateChart() {
+    if (!balanceChart) {
+        initializeChart();
+    }
+    
+    // Añadir nuevo punto (SIN LÍMITE, muestra todo el progreso)
+    chartData.labels.push(totalBets.toString());
+    chartData.balances.push(balance);
+    
+    // Actualizar color de la línea según profit
+    const color = netProfit >= 0 ? '#4ade80' : '#f87171';
+    balanceChart.data.datasets[0].borderColor = color;
+    balanceChart.data.datasets[0].backgroundColor = netProfit >= 0 
+        ? 'rgba(74, 222, 128, 0.1)' 
+        : 'rgba(248, 113, 113, 0.1)';
+    
+    // Actualizar información
+    const chartInfo = document.getElementById('chart_info');
+    if (chartInfo) {
+        const profitText = netProfit >= 0 ? `+${netProfit.toFixed(8)}` : netProfit.toFixed(8);
+        chartInfo.textContent = `${totalBets} apuestas | Profit: ${profitText} BTC`;
+        chartInfo.style.color = netProfit >= 0 ? '#4ade80' : '#f87171';
+    }
+    
+    // Actualizar gráfica (se ajusta automáticamente al ancho)
+    balanceChart.update('none'); // 'none' = sin animación para máxima velocidad
+}
+
+function resetChart() {
+    chartData.labels = [];
+    chartData.balances = [];
+    
+    if (balanceChart) {
+        balanceChart.data.labels = [];
+        balanceChart.data.datasets[0].data = [];
+        balanceChart.update();
+    }
+    
+    console.log('📊 Gráfica reseteada');
+}
+
+// Inicializar gráfica al cargar
+window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        initializeChart();
+        // Añadir punto inicial
+        chartData.labels.push('0');
+        chartData.balances.push(balance);
+        balanceChart.update();
+    }, 500);
+});
 
 // Atajos de teclado (opcional)
 document.addEventListener('keydown', (e) => {
